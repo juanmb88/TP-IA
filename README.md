@@ -1,9 +1,9 @@
-# Sinopsis del Proyecto
+# Este Repositorio
 
-Este proyecto consiste en un conjunto de datos (dataset) que aborda conceptos clave de matemáticas, específicamente enfocados en conjuntos numéricos, ecuaciones e inecuaciones.
+Contiene un archivo . json que consiste en un conjunto de datos (dataset) que aborda conceptos clave de matemáticas, específicamente enfocados en conjuntos numéricos, ecuaciones e inecuaciones.
   El dataset está diseñado para ser utilizado en el entrenamiento de modelos de inteligencia artificial (IA) que puedan clasificar, reconocer y resolver problemas matemáticos relacionados con estos temas.
 
-El dataset proporciona descripciones detalladas de cada concepto y ejemplos prácticos que permiten a los modelos de IA aprender a identificar, clasificar y resolver diferentes tipos de ecuaciones e inecuacionesde manera autónoma.
+El dataset proporciona descripciones detalladas de cada concepto y ejemplos practicos que permiten a los modelos de IA aprender a identificar, clasificar y resolver diferentes tipos de ecuaciones e inecuacionesde manera autonoma.
 
 ## Conjuntos Numéricos
 Contiene ejemplos de clasificación de números según sus propiedades y características, cubriendo los conjuntos de números naturales, enteros, racionales, irracionales y reales. Los modelos de IA pueden utilizar estos ejemplos para aprender a reconocer y clasificar números en sus respectivos conjuntos.
