@@ -15,7 +15,7 @@ El dataset incluye ejemplos de ecuaciones algebraicas de diferentes tipos: de pr
 Se incluyen ejemplos de inecuaciones lineales, cuadráticas, racionales y radicales, con ejercicios prácticos que permiten entrenar modelos de IA para resolver inecuaciones mediante manipulación algebraica.
 
 ## Estructura
-El proyecto está organizado en varias secciones que cubren teoría, ejemplos resueltos y ejercicios para practicar. El conjunto de datos está estructurado de manera que facilita el uso en el entrenamiento de modelos de IA, ayudando a los sistemas a mejorar su capacidad para reconocer y resolver problemas matemáticos de manera eficiente.
+El archivo está organizado en varias secciones que cubren teoría, ejemplos resueltos y ejercicios para practicar. El conjunto de datos está estructurado de manera que facilita el uso en el entrenamiento de modelos de IA, ayudando a los sistemas a mejorar su capacidad para reconocer y resolver problemas matemáticos de manera eficiente.
 
 
 #  En una primera etapa (borrador)
