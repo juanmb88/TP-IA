@@ -73,7 +73,7 @@ No se detectaron GPUs disponibles para PyTorch
    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 3. Verificar que CUDA Toolkit está instalado (versión compatible con PyTorch)
 4. Asegurarse que la GPU es compatible con la versión de CUDA requerida
-*_*_*_*_*_*_*_*_*_**_
+*_*_*_*_*_*_*_*_*_**_*_*_
 
 
 ----------
@@ -84,12 +84,19 @@ función principal es tomar un modelo base pre-entrenado y ajustarlo utilizando 
 
 Flujo de ejecución
 
-1.Detección de hardware: Identifica si hay GPU disponible para acelerar el entrenamiento.
-2.Preparación del entorno: Crea los directorios necesarios para guardar el modelo y checkpoints.
-3.Carga del modelo base: Intenta cargar un modelo de lenguaje grande de acceso libre (como Falcon-7B, OPT-6.7B o similar) como punto de partida.
-4.Aplicación de LoRA: Implementa la técnica Low-Rank Adaptation, que permite ajustar el modelo de manera eficiente sin modificar todos sus parámetros,
+  1.Detección de hardware: Identifica si hay GPU disponible para acelerar el entrenamiento.
+
+  2.Preparación del entorno: Crea los directorios necesarios para guardar el modelo y checkpoints.
+
+  3.Carga del modelo base: Intenta cargar un modelo de lenguaje grande de acceso libre (como Falcon-7B, OPT-6.7B o similar) como punto de partida.
+
+  4.Aplicación de LoRA: Implementa la técnica Low-Rank Adaptation, que permite ajustar el modelo de manera eficiente sin modificar todos sus parámetros,
  reduciendo drásticamente los requisitos de memoria y tiempo.
-5.Carga y preprocesamiento del dataset: Prepara los datos de conversaciones matemáticas, los tokeniza y los divide en conjuntos de entrenamiento y evaluación.
-6.Configuración del entrenamiento: Establece hiperparámetros como la tasa de aprendizaje, tamaño de batch y número de épocas según la configuración definida en config.py.
-7.Proceso de entrenamiento: Ejecuta el ciclo de entrenamiento donde el modelo aprende de los ejemplos proporcionados, con evaluaciones periódicas.
-8.Guardado del modelo: Al finalizar, guarda los adaptadores LoRA y el tokenizador en la ubicación especificada para uso posterior.
+ 
+  5.Carga y preprocesamiento del dataset: Prepara los datos de conversaciones matemáticas, los tokeniza y los divide en conjuntos de entrenamiento y evaluación.
+
+  6.Configuración del entrenamiento: Establece hiperparámetros como la tasa de aprendizaje, tamaño de batch y número de épocas según la configuración definida en config.py.
+
+  7.Proceso de entrenamiento: Ejecuta el ciclo de entrenamiento donde el modelo aprende de los ejemplos proporcionados, con evaluaciones periódicas.
+
+  8.Guardado del modelo: Al finalizar, guarda los adaptadores LoRA y el tokenizador en la ubicación especificada para uso posterior.
