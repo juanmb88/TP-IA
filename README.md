@@ -1,10 +1,10 @@
 -----------------
 config.py - Variables de entorno:
 
-Actúa como un repositorio central de configuraciones del proyecto 
-Contiene constantes y parámetros que se usarán en todo el proyecto
-Centraliza aspectos como rutas, hiperparámetros y configuraciones específicas
-Facilita cambiar la configuración en un solo lugar sin tocar el código en múltiples archivos
+  Actúa como un repositorio central de configuraciones del proyecto  
+  Contiene constantes y parámetros que se usarán en todo el proyecto
+  Centraliza aspectos como rutas, hiperparámetros y configuraciones específicas
+  Facilita cambiar la configuración en un solo lugar sin tocar el código en múltiples archivos
 -----------------
 utils.py
 -----------------
