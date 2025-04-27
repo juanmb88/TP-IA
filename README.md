@@ -1,660 +1,95 @@
-# Guía para Fine-Tuning de LLM con Dataset de Conceptos Matemáticos
-
-Basándome en el repositorio que compartiste, las librerías instaladas, y ahora teniendo en cuenta que cuentas con un dataset JSON de conceptos matemáticos en formato de conversación, te proporcionaré una guía actualizada paso a paso.
-
-## Estructura de Carpetas
-
-Mantén la misma estructura de carpetas:
-
-```
-mi-proyecto-finetuning/
-├── dataset/
-│   └── matematicas.json  # Tu dataset de conceptos matemáticos
-├── models/
-│   └── (aquí se guardarán los modelos)
-├── checkpoints/
-│   └── (aquí se guardarán los checkpoints)
-├── config.py
-├── datamodule.py
-├── train.py
-├── utils.py
-├── evaluate.py
-└── requirements.txt
-```
-
-## Paso 1: Configuración (config.py)
-
-Actualicemos el archivo de configuración para adaptarlo a tu dataset:
-
-```python
-"""
-Configuración para el proceso de fine-tuning de un modelo matemático
-"""
-
-# Rutas
-MODEL_PATH = "models/"
-CHECKPOINT_PATH = "checkpoints/"
-DATASET_PATH = "dataset/matematicas.json"
-
-# Modelo base a utilizar (puedes usar Mathstral para mejores resultados en matemáticas)
-BASE_MODEL = "mistralai/Mistral-7B-v0.1"  # O "meta-llama/Llama-2-7b-hf" o "google/gemma-7b"
-
-# Configuración de entrenamiento
-LEARNING_RATE = 2e-4
-NUM_EPOCHS = 3
-BATCH_SIZE = 2
-GRADIENT_ACCUMULATION_STEPS = 4
-WARMUP_STEPS = 100
-MAX_STEPS = 1000  # Ajusta según el tamaño de tu dataset (aproximadamente 300 ejemplos)
-SAVE_STEPS = 200
-LOGGING_STEPS = 50
-MAX_LENGTH = 512  # Longitud máxima de contexto
-
-# Configuración LoRA
-LORA_R = 16  # Rank
-LORA_ALPHA = 32  # Alpha
-LORA_DROPOUT = 0.05
-LORA_TARGET_MODULES = [
-    "q_proj",
-    "k_proj",
-    "v_proj",
-    "o_proj",
-    "gate_proj",
-    "up_proj",
-    "down_proj",
-]
-
-# Configuración de cuantización
-BITS = 4  # Bits para la cuantización del modelo base
-DOUBLE_QUANT = True  # Aplicar doble cuantización
-
-# Configuración del formato para conversación
-# Formato adaptado al estilo de chat con roles
-CHAT_TEMPLATE = """<s>{{#each messages}}{{#ifEquals role "user"}}[INST] {{content}} [/INST]{{/ifEquals}}{{#ifEquals role "assistant"}}{{content}}</s>{{/ifEquals}}{{/each}}"""
-
-# Nombre del modelo fine-tuned
-MODEL_NAME = "matematicas-tutor"
-```
-
-## Paso 2: Utilidades (utils.py)
-
-Mantiene la mayoría de las funciones, pero añadimos soporte para el formato de chat:
-
-```python
-"""
-Funciones de utilidad para el proceso de fine-tuning
-"""
-
-import os
-import torch
-from transformers import AutoTokenizer
-import bitsandbytes as bnb
-import json
-import random
-
-def create_directories():
-    """Crear las carpetas necesarias si no existen"""
-    from config import MODEL_PATH, CHECKPOINT_PATH
-    
-    os.makedirs(MODEL_PATH, exist_ok=True)
-    os.makedirs(CHECKPOINT_PATH, exist_ok=True)
-
-def load_tokenizer(model_name):
-    """Cargar el tokenizer del modelo base"""
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-    
-    # Configurar el tokenizer
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    
-    # Configurar la plantilla de chat si existe
-    from config import CHAT_TEMPLATE
-    if CHAT_TEMPLATE and hasattr(tokenizer, "chat_template"):
-        tokenizer.chat_template = CHAT_TEMPLATE
-        
-    return tokenizer
-
-def print_trainable_parameters(model):
-    """
-    Imprime el número de parámetros entrenables vs total
-    """
-    trainable_params = 0
-    all_param = 0
-    
-    for _, param in model.named_parameters():
-        all_param += param.numel()
-        if param.requires_grad:
-            trainable_params += param.numel()
-            
-    print(f"Parámetros entrenables: {trainable_params:,d} ({100 * trainable_params / all_param:.2f}% del total)")
-    print(f"Total de parámetros: {all_param:,d}")
-
-def format_chat_to_instruction_response(messages):
-    """Convertir un formato de chat a pares de instrucción-respuesta"""
-    # Asumimos que los mensajes vienen en pares usuario-asistente
-    if len(messages) >= 2 and messages[0]["role"] == "user" and messages[1]["role"] == "assistant":
-        return {
-            "instruction": messages[0]["content"],
-            "response": messages[1]["content"]
-        }
-    return None
-
-def format_conversation(messages):
-    """Formatea una conversación para que el modelo la entienda"""
-    if not hasattr(format_conversation, "tokenizer"):
-        from config import BASE_MODEL
-        format_conversation.tokenizer = load_tokenizer(BASE_MODEL)
-    
-    # Usar la plantilla de chat del tokenizer si está disponible
-    if hasattr(format_conversation.tokenizer, "apply_chat_template"):
-        formatted_chat = format_conversation.tokenizer.apply_chat_template(
-            messages, 
-            tokenize=False, 
-            add_generation_prompt=True
-        )
-        return formatted_chat
-    
-    # Alternativa: formatear manualmente
-    formatted_chat = ""
-    for msg in messages:
-        if msg["role"] == "user":
-            formatted_chat += f"[INST] {msg['content']} [/INST]"
-        elif msg["role"] == "assistant":
-            formatted_chat += f"{msg['content']}</s>"
-    
-    return formatted_chat
-
-def load_json_dataset(file_path):
-    """Cargar un dataset en formato JSON de chat matemático"""
-    with open(file_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    return data
-
-def save_model_adapter(model, output_dir):
-    """Guardar el adaptador LoRA del modelo"""
-    model.save_pretrained(output_dir)
-    print(f"Adaptador LoRA guardado en: {output_dir}")
-
-def find_all_linear_layers(model):
-    """Encontrar todas las capas lineales en el modelo para cuantización"""
-    lora_target_modules = []
-    for name, module in model.named_modules():
-        if isinstance(module, torch.nn.Linear):
-            lora_target_modules.append(name.split('.')[-1])
-    
-    return list(set(lora_target_modules))
-```
-
-## Paso 3: Preparación de Datos (datamodule.py)
-
-Actualicemos este archivo para manejar tu formato específico de datos:
-
-```python
-"""
-Módulo para cargar y preparar los datos de entrenamiento para el tutor matemático
-"""
-
-from datasets import load_dataset, Dataset
-from transformers import AutoTokenizer
-import pandas as pd
-import torch
-from utils import format_chat_to_instruction_response, format_conversation, load_json_dataset
-from config import MAX_LENGTH, DATASET_PATH
-
-def prepare_dataset():
-    """Preparar y cargar el dataset de conceptos matemáticos"""
-    try:
-        # Cargar desde un archivo JSON
-        data = load_json_dataset(DATASET_PATH)
-        
-        # Convertir los datos al formato necesario
-        formatted_data = []
-        
-        for item in data:
-            if "messages" in item:
-                # Extraer la instrucción (pregunta) y respuesta
-                instruction_response = format_chat_to_instruction_response(item["messages"])
-                if instruction_response:
-                    formatted_data.append(instruction_response)
-        
-        # Verificar que tenemos datos
-        if not formatted_data:
-            raise ValueError("No se pudieron extraer pares de instrucción-respuesta válidos del dataset")
-        
-        # Convertir a Dataset de HuggingFace
-        dataset = Dataset.from_pandas(pd.DataFrame(formatted_data))
-        
-        print(f"Dataset de matemáticas cargado con {len(dataset)} ejemplos")
-        return dataset
-    
-    except Exception as e:
-        print(f"Error al cargar el dataset: {str(e)}")
-        return None
-
-def prepare_conversations_dataset():
-    """Preparar el dataset manteniendo el formato de conversación"""
-    try:
-        # Cargar desde un archivo JSON
-        data = load_json_dataset(DATASET_PATH)
-        
-        # Mantener el formato de conversación completo
-        formatted_data = []
-        
-        for item in data:
-            if "messages" in item:
-                formatted_data.append({"messages": item["messages"]})
-        
-        # Verificar que tenemos datos
-        if not formatted_data:
-            raise ValueError("No se pudieron extraer conversaciones válidas del dataset")
-        
-        # Convertir a Dataset de HuggingFace
-        dataset = Dataset.from_pandas(pd.DataFrame(formatted_data))
-        
-        print(f"Dataset de conversaciones matemáticas cargado con {len(dataset)} ejemplos")
-        return dataset
-    
-    except Exception as e:
-        print(f"Error al cargar el dataset: {str(e)}")
-        return None
-
-def preprocess_function(examples, tokenizer):
-    """Preprocesar y tokenizar los ejemplos de instrucción-respuesta"""
-    # Formatear los ejemplos según el formato de instrucción
-    formatted_texts = []
-    
-    for instruction, response in zip(examples['instruction'], examples['response']):
-        # Crear una conversación en formato de lista de mensajes
-        messages = [
-            {"role": "user", "content": instruction},
-            {"role": "assistant", "content": response}
-        ]
-        
-        # Formatear la conversación
-        formatted_text = format_conversation(messages)
-        formatted_texts.append(formatted_text)
-    
-    # Tokenizar los textos
-    tokenized = tokenizer(
-        formatted_texts,
-        padding="max_length",
-        truncation=True,
-        max_length=MAX_LENGTH,
-        return_tensors="pt"
-    )
-    
-    # Prepara las etiquetas (igual que los input_ids para entrenamiento de lenguaje)
-    tokenized["labels"] = tokenized["input_ids"].clone()
-    
-    return tokenized
-
-def preprocess_conversations(examples, tokenizer):
-    """Preprocesar y tokenizar las conversaciones completas"""
-    formatted_texts = []
-    
-    for messages in examples['messages']:
-        formatted_text = format_conversation(messages)
-        formatted_texts.append(formatted_text)
-    
-    # Tokenizar los textos
-    tokenized = tokenizer(
-        formatted_texts,
-        padding="max_length",
-        truncation=True,
-        max_length=MAX_LENGTH,
-        return_tensors="pt"
-    )
-    
-    # Prepara las etiquetas (igual que los input_ids para entrenamiento de lenguaje)
-    tokenized["labels"] = tokenized["input_ids"].clone()
-    
-    return tokenized
-
-def get_tokenized_dataset(tokenizer, use_conversation_format=True):
-    """Obtener el dataset tokenizado"""
-    if use_conversation_format:
-        dataset = prepare_conversations_dataset()
-        if dataset is None:
-            raise ValueError("No se pudo cargar el dataset de conversaciones")
-        
-        # Procesar el dataset
-        tokenized_dataset = dataset.map(
-            lambda examples: preprocess_conversations(examples, tokenizer),
-            batched=True,
-            remove_columns=['messages']
-        )
-    else:
-        dataset = prepare_dataset()
-        if dataset is None:
-            raise ValueError("No se pudo cargar el dataset")
-        
-        # Procesar el dataset
-        tokenized_dataset = dataset.map(
-            lambda examples: preprocess_function(examples, tokenizer),
-            batched=True,
-            remove_columns=['instruction', 'response']
-        )
-    
-    return tokenized_dataset
-```
-
-## Paso 4: Script de Entrenamiento (train.py)
-
-Actualicemos el script de entrenamiento:
-
-```python
-"""
-Script principal para el fine-tuning del modelo de asistente matemático
-"""
-
-import os
-import torch
-import bitsandbytes as bnb
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    BitsAndBytesConfig,
-    TrainingArguments,
-)
-from peft import (
-    LoraConfig,
-    get_peft_model,
-    prepare_model_for_kbit_training,
-    TaskType,
-)
-from transformers import Trainer
-from datamodule import get_tokenized_dataset
-from utils import (
-    create_directories, 
-    load_tokenizer, 
-    print_trainable_parameters, 
-    save_model_adapter,
-)
-import config
-
-def main():
-    # Crear directorios necesarios
-    create_directories()
-    
-    print(f"Cargando modelo base: {config.BASE_MODEL}")
-    
-    # Configuración de cuantización
-    quantization_config = BitsAndBytesConfig(
-        load_in_4bit=True if config.BITS == 4 else False,
-        load_in_8bit=True if config.BITS == 8 else False,
-        llm_int8_threshold=6.0,
-        llm_int8_has_fp16_weight=False,
-        bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_use_double_quant=config.DOUBLE_QUANT,
-        bnb_4bit_quant_type="nf4",
-    )
-    
-    # Cargar el modelo base
-    model = AutoModelForCausalLM.from_pretrained(
-        config.BASE_MODEL,
-        quantization_config=quantization_config,
-        device_map="auto",
-        trust_remote_code=True,
-    )
-    
-    # Cargar el tokenizer
-    tokenizer = load_tokenizer(config.BASE_MODEL)
-    
-    # Preparar el modelo para entrenamiento de 4-bit
-    model = prepare_model_for_kbit_training(model)
-    
-    # Configuración de LoRA
-    lora_config = LoraConfig(
-        r=config.LORA_R,
-        lora_alpha=config.LORA_ALPHA,
-        lora_dropout=config.LORA_DROPOUT,
-        bias="none",
-        task_type=TaskType.CAUSAL_LM,
-        target_modules=config.LORA_TARGET_MODULES,
-    )
-    
-    # Obtener modelo con LoRA aplicado
-    model = get_peft_model(model, lora_config)
-    
-    # Mostrar información de parámetros entrenables
-    print_trainable_parameters(model)
-    
-    # Preparar dataset - usando formato de conversación
-    tokenized_dataset = get_tokenized_dataset(tokenizer, use_conversation_format=True)
-    
-    # Configuración de entrenamiento
-    training_args = TrainingArguments(
-        output_dir=config.CHECKPOINT_PATH,
-        learning_rate=config.LEARNING_RATE,
-        num_train_epochs=config.NUM_EPOCHS,
-        per_device_train_batch_size=config.BATCH_SIZE,
-        gradient_accumulation_steps=config.GRADIENT_ACCUMULATION_STEPS,
-        warmup_steps=config.WARMUP_STEPS,
-        max_steps=config.MAX_STEPS,
-        save_steps=config.SAVE_STEPS,
-        logging_steps=config.LOGGING_STEPS,
-        save_total_limit=2,
-        remove_unused_columns=False,
-        push_to_hub=False,
-        report_to="none",
-        optim="paged_adamw_8bit",
-        fp16=True,
-    )
-    
-    # Inicializar Trainer
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=tokenized_dataset,
-    )
-    
-    # Iniciar entrenamiento
-    print("Iniciando entrenamiento del asistente matemático...")
-    trainer.train()
-    
-    # Guardar modelo y adaptador LoRA
-    final_model_path = os.path.join(config.MODEL_PATH, config.MODEL_NAME)
-    save_model_adapter(model, final_model_path)
-    
-    # Guardar también el tokenizer con la plantilla de chat
-    tokenizer.save_pretrained(final_model_path)
-    
-    print(f"¡Entrenamiento completado! Modelo guardado en {final_model_path}")
-
-if __name__ == "__main__":
-    main()
-```
-
-## Paso 5: Script de Evaluación (evaluate.py)
-
-Actualicemos el script de evaluación para el formato de conversación:
-
-```python
-"""
-Script para evaluar el modelo matemático entrenado
-"""
-
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel, PeftConfig
-import os
-from config import BASE_MODEL, MODEL_PATH, MODEL_NAME
-
-def load_model():
-    """Cargar el modelo base con el adaptador LoRA"""
-    # Cargar el modelo base
-    base_model = AutoModelForCausalLM.from_pretrained(
-        BASE_MODEL,
-        device_map="auto",
-        torch_dtype=torch.float16,
-        trust_remote_code=True,
-    )
-    
-    # Cargar el adaptador LoRA
-    adapter_path = os.path.join(MODEL_PATH, MODEL_NAME)
-    model = PeftModel.from_pretrained(base_model, adapter_path)
-    
-    # Cargar el tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(adapter_path, trust_remote_code=True)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    
-    return model, tokenizer
-
-def generate_response(model, tokenizer, user_message, conversation_history=None):
-    """Generar respuesta para una pregunta matemática"""
-    if conversation_history is None:
-        conversation_history = []
-    
-    # Añadir el mensaje del usuario a la conversación
-    conversation_history.append({"role": "user", "content": user_message})
-    
-    # Utilizar la plantilla de chat si está disponible
-    if hasattr(tokenizer, "apply_chat_template"):
-        input_text = tokenizer.apply_chat_template(
-            conversation_history, 
-            tokenize=False,
-            add_generation_prompt=True
-        )
-    else:
-        # Formatear manualmente
-        input_text = ""
-        for msg in conversation_history:
-            if msg["role"] == "user":
-                input_text += f"[INST] {msg['content']} [/INST]"
-            elif msg["role"] == "assistant":
-                input_text += f"{msg['content']}</s>"
-    
-    # Tokenizar
-    inputs = tokenizer(input_text, return_tensors="pt").to(model.device)
-    
-    # Generar respuesta
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=512,
-            temperature=0.5,  # Temperatura baja para respuestas matemáticas precisas
-            do_sample=True,
-            top_p=0.9,
-            repetition_penalty=1.2,
-        )
-    
-    # Decodificar la respuesta
-    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=False)
-    
-    # Extraer la respuesta generada
-    # Esta parte puede necesitar ajustes según la salida exacta
-    response = ""
-    if "[/INST]" in generated_text:
-        response = generated_text.split("[/INST]")[1].strip()
-        if "</s>" in response:
-            response = response.split("</s>")[0].strip()
-    else:
-        last_user_content = user_message
-        response = generated_text.replace(input_text, "").strip()
-        if response.startswith(last_user_content):
-            response = response[len(last_user_content):].strip()
-    
-    # Añadir la respuesta a la conversación
-    conversation_history.append({"role": "assistant", "content": response})
-    
-    return response, conversation_history
-
-def main():
-    # Cargar modelo
-    model, tokenizer = load_model()
-    
-    print("Modelo matemático cargado. Escribe 'salir' para terminar.")
-    
-    conversation_history = []
-    
-    while True:
-        user_input = input("\nEscribe tu pregunta matemática: ")
-        if user_input.lower() == "salir":
-            break
-        
-        response, conversation_history = generate_response(
-            model, 
-            tokenizer, 
-            user_input, 
-            conversation_history
-        )
-        
-        print("\nRespuesta:\n", response)
-
-if __name__ == "__main__":
-    main()
-```
-
-## Paso 6: Preparar el Dataset
-
-Tu archivo JSON ya está en el formato adecuado. Solo asegúrate de que esté ubicado en `dataset/matematicas.json` y que tenga la estructura:
-
-```json
-[
-  {
-    "messages": [
-      { "role": "user", "content": "¿Qué son los números naturales?" },
-      { "role": "assistant", "content": "Los números naturales (ℕ) son el conjunto de números enteros positivos: 1, 2, 3, 4, 5,... Se utilizan para contar y ordenar elementos." }
-    ]
-  },
-  {
-    "messages": [
-      { "role": "user", "content": "Explica qué es una derivada" },
-      { "role": "assistant", "content": "La derivada es un concepto fundamental del cálculo que representa la tasa de cambio instantáneo de una función con respecto a una variable. Geométricamente, representa la pendiente de la recta tangente a la curva de la función en un punto dado." }
-    ]
-  },
-  ...
-]
-```
-
-## Paso 7: Configurar Requirements
-
-El archivo de requisitos sigue siendo el mismo:
-
-```
-accelerate>=1.6.0
-bitsandbytes>=0.45.0
-datasets>=3.5.0
-peft>=0.15.0
-transformers>=4.51.0
-torch>=2.7.0
-tqdm>=4.67.0
-pandas>=2.2.0
-```
-
-## Paso 8: Ejecutar el Fine-Tuning
-
-Ahora puedes ejecutar el entrenamiento con tu dataset de conceptos matemáticos:
-
-```bash
-python train.py
-```
-
-El proceso adaptará el modelo base para que se especialice en responder preguntas matemáticas, utilizando el formato de conversación que ya tienes en tu dataset.
-
-## Paso 9: Probar el Modelo Entrenado
-
-Una vez completado el entrenamiento, prueba tu asistente matemático:
-
-```bash
-python evaluate.py
-```
-
-Este script te permitirá mantener una conversación con tu modelo, preguntándole sobre conceptos matemáticos.
-
-## Consideraciones Específicas para tu Dataset Matemático
-
-1. **Modelo Base**: Considera usar un modelo ya especializado en matemáticas como punto de partida si está disponible (Mathstral-7B o uno similar). Estos modelos ya tienen un buen entendimiento de conceptos matemáticos.
-
-2. **Temperatura de Generación**: Para respuestas matemáticas precisas, es recomendable usar una temperatura más baja (0.3-0.5) durante la inferencia.
-
-3. **Validación**: Después del entrenamiento, verifica que el modelo no "invente" fórmulas incorrectas. Las matemáticas requieren precisión absoluta.
-
-4. **Longitud de Contexto**: Asegúrate de que `MAX_LENGTH` sea suficiente para capturar explicaciones matemáticas completas, que a veces pueden ser extensas.
-
-5. **Más Épocas**: Si tienes alrededor de 300 ejemplos, considera aumentar las épocas a 5-8 para asegurar un buen aprendizaje, ya que es un dataset relativamente pequeño.
-
----
-
-Con estas adaptaciones, tu proyecto estará optimizado para fine-tuning con tu dataset específico de conceptos matemáticos, aprovechando el formato de conversación que ya tienes y las librerías instaladas en tu sistema.
+-----------------
+config.py - Variables de entorno:
+
+Actúa como un repositorio central de configuraciones del proyecto 
+Contiene constantes y parámetros que se usarán en todo el proyecto
+Centraliza aspectos como rutas, hiperparámetros y configuraciones específicas
+Facilita cambiar la configuración en un solo lugar sin tocar el código en múltiples archivos
+-----------------
+utils.py
+-----------------
+dos funciones nuevas:
+
+load_model_from_gguf: Esta función está diseñada específicamente para ayudar a cargar modelos en formato GGUF 
+(el formato que usa LM Studio y que tiene tu modelo Mathstral).
+validate_math_response: Una función básica para validar respuestas matemáticas, que puede ser útil durante la evaluación del modelo.
+
+El resto del código mantiene las funciones, que ya cubren bien las necesidades del proyecto, como:
+
+Crear directorios necesarios
+Cargar el tokenizador
+Calcular parámetros entrenables
+Formatear conversaciones
+Cargar datasets JSON
+Guardar adaptadores LoRA
+Encontrar capas lineales
+
+-------------
+datamodule.py (Módulo de manejo de datos)
+-------------
+Funcionalidades principales:
+
+Carga de datos:
+Funciones para cargar tu dataset JSON de conceptos matemáticos
+Soporte para dos formatos: pares instrucción-respuesta y conversaciones completas
+prepare_dataset() - Carga el dataset JSON y lo convierte a pares de instrucción-respuesta
+
+Preprocesamiento:
+Tokenización de los textos usando el tokenizador del modelo
+Formateo adecuado según el template de chat definido en config.py
+Preparación de etiquetas para el entrenamiento
+preprocess_function() - Tokeniza los pares instrucción-respuesta
+preprocess_conversations() - Tokeniza las conversaciones completas
+
+Manejo del dataset:
+División en conjuntos de entrenamiento y prueba
+Análisis estadístico del dataset (longitudes, palabras clave)
+get_tokenized_dataset() - Obtiene el dataset tokenizado listo para entrenamiento
+split_dataset() - Divide los datos en conjuntos de entrenamiento y evaluación
+analyze_dataset_stats() - Analiza estadísticas básicas del dataset (longitudes, temas, etc.)
+
+Análisis de contenido:
+Detección de temas matemáticos frecuentes en el dataset
+Estadísticas sobre longitudes de preguntas y respuestas
+
+
+Flujo de trabajo:
+
+Cargar el dataset JSON usando prepare_conversations_dataset()
+Tokenizar los datos con get_tokenized_dataset()
+Opcionalmente dividir en train/test con split_dataset()
+Analizar estadísticas con analyze_dataset_stats()
+
+*_*_*_*_*_*_*_*_*_**_*_*_
+A ESTE PUNTO DEBI CONFIGURAR LOS DRIVERS DE MI PLACA DE VIDEO 
+== DIAGNÓSTICO DE GPU/CUDA ===
+PyTorch detecta CUDA: ❌ No
+Versión de PyTorch: 2.7.0+cpu
+PyTorch compilado con CUDA: ✅ Sí
+No se detectaron GPUs disponibles para PyTorch
+ CUDA no está disponible para PyTorch.
+1. Instalar los drivers NVIDIA más recientes para tu GPU
+2. Reinstalar PyTorch con soporte CUDA usando el comando apropiado de pytorch.org:
+   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+3. Verificar que CUDA Toolkit está instalado (versión compatible con PyTorch)
+4. Asegurarse que la GPU es compatible con la versión de CUDA requerida
+*_*_*_*_*_*_*_*_*_**_
+
+
+----------
+train.py
+----------
+es el componente central del proyecto de fine-tuning de un modelo de lenguaje para conceptos matemáticos.
+función principal es tomar un modelo base pre-entrenado y ajustarlo utilizando un dataset específico de conversaciones matemáticas.
+
+Flujo de ejecución
+
+1.Detección de hardware: Identifica si hay GPU disponible para acelerar el entrenamiento.
+2.Preparación del entorno: Crea los directorios necesarios para guardar el modelo y checkpoints.
+3.Carga del modelo base: Intenta cargar un modelo de lenguaje grande de acceso libre (como Falcon-7B, OPT-6.7B o similar) como punto de partida.
+4.Aplicación de LoRA: Implementa la técnica Low-Rank Adaptation, que permite ajustar el modelo de manera eficiente sin modificar todos sus parámetros,
+ reduciendo drásticamente los requisitos de memoria y tiempo.
+5.Carga y preprocesamiento del dataset: Prepara los datos de conversaciones matemáticas, los tokeniza y los divide en conjuntos de entrenamiento y evaluación.
+6.Configuración del entrenamiento: Establece hiperparámetros como la tasa de aprendizaje, tamaño de batch y número de épocas según la configuración definida en config.py.
+7.Proceso de entrenamiento: Ejecuta el ciclo de entrenamiento donde el modelo aprende de los ejemplos proporcionados, con evaluaciones periódicas.
+8.Guardado del modelo: Al finalizar, guarda los adaptadores LoRA y el tokenizador en la ubicación especificada para uso posterior.
