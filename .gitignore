@@ -1,0 +1,57 @@
+# Entorno virtual
+venv/
+env/
+ENV/
+
+# Modelos y checkpoints (archivos grandes)
+models/
+checkpoints/
+*.gguf
+*.bin
+*.pt
+*.pth
+*.safetensors
+
+# Archivos de caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Archivos de distribución
+*.egg-info/
+dist/
+build/
+
+# Archivos temporales
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Archivos de configuración local
+.env
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+wandb/
+
+# Archivos Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Potenciales archivos grandes de datos
+*.csv
+*.xlsx
+*.parquet
+*.arrow
+# Mantener nuestro dataset JSON específico
+!dataset/matematicas.json
+
+# Archivos de configuración específicos de GPU/CUDA
+.nv/

@@ -1,0 +1,95 @@
+-----------------
+config.py - Variables de entorno:
+
+Actúa como un repositorio central de configuraciones del proyecto 
+Contiene constantes y parámetros que se usarán en todo el proyecto
+Centraliza aspectos como rutas, hiperparámetros y configuraciones específicas
+Facilita cambiar la configuración en un solo lugar sin tocar el código en múltiples archivos
+-----------------
+utils.py
+-----------------
+dos funciones nuevas:
+
+load_model_from_gguf: Esta función está diseñada específicamente para ayudar a cargar modelos en formato GGUF 
+(el formato que usa LM Studio y que tiene tu modelo Mathstral).
+validate_math_response: Una función básica para validar respuestas matemáticas, que puede ser útil durante la evaluación del modelo.
+
+El resto del código mantiene las funciones, que ya cubren bien las necesidades del proyecto, como:
+
+Crear directorios necesarios
+Cargar el tokenizador
+Calcular parámetros entrenables
+Formatear conversaciones
+Cargar datasets JSON
+Guardar adaptadores LoRA
+Encontrar capas lineales
+
+-------------
+datamodule.py (Módulo de manejo de datos)
+-------------
+Funcionalidades principales:
+
+Carga de datos:
+Funciones para cargar tu dataset JSON de conceptos matemáticos
+Soporte para dos formatos: pares instrucción-respuesta y conversaciones completas
+prepare_dataset() - Carga el dataset JSON y lo convierte a pares de instrucción-respuesta
+
+Preprocesamiento:
+Tokenización de los textos usando el tokenizador del modelo
+Formateo adecuado según el template de chat definido en config.py
+Preparación de etiquetas para el entrenamiento
+preprocess_function() - Tokeniza los pares instrucción-respuesta
+preprocess_conversations() - Tokeniza las conversaciones completas
+
+Manejo del dataset:
+División en conjuntos de entrenamiento y prueba
+Análisis estadístico del dataset (longitudes, palabras clave)
+get_tokenized_dataset() - Obtiene el dataset tokenizado listo para entrenamiento
+split_dataset() - Divide los datos en conjuntos de entrenamiento y evaluación
+analyze_dataset_stats() - Analiza estadísticas básicas del dataset (longitudes, temas, etc.)
+
+Análisis de contenido:
+Detección de temas matemáticos frecuentes en el dataset
+Estadísticas sobre longitudes de preguntas y respuestas
+
+
+Flujo de trabajo:
+
+Cargar el dataset JSON usando prepare_conversations_dataset()
+Tokenizar los datos con get_tokenized_dataset()
+Opcionalmente dividir en train/test con split_dataset()
+Analizar estadísticas con analyze_dataset_stats()
+
+*_*_*_*_*_*_*_*_*_**_*_*_
+A ESTE PUNTO DEBI CONFIGURAR LOS DRIVERS DE MI PLACA DE VIDEO 
+== DIAGNÓSTICO DE GPU/CUDA ===
+PyTorch detecta CUDA: ❌ No
+Versión de PyTorch: 2.7.0+cpu
+PyTorch compilado con CUDA: ✅ Sí
+No se detectaron GPUs disponibles para PyTorch
+ CUDA no está disponible para PyTorch.
+1. Instalar los drivers NVIDIA más recientes para tu GPU
+2. Reinstalar PyTorch con soporte CUDA usando el comando apropiado de pytorch.org:
+   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+3. Verificar que CUDA Toolkit está instalado (versión compatible con PyTorch)
+4. Asegurarse que la GPU es compatible con la versión de CUDA requerida
+*_*_*_*_*_*_*_*_*_**_
+
+
+----------
+train.py
+----------
+es el componente central del proyecto de fine-tuning de un modelo de lenguaje para conceptos matemáticos.
+función principal es tomar un modelo base pre-entrenado y ajustarlo utilizando un dataset específico de conversaciones matemáticas.
+
+Flujo de ejecución
+
+1.Detección de hardware: Identifica si hay GPU disponible para acelerar el entrenamiento.
+2.Preparación del entorno: Crea los directorios necesarios para guardar el modelo y checkpoints.
+3.Carga del modelo base: Intenta cargar un modelo de lenguaje grande de acceso libre (como Falcon-7B, OPT-6.7B o similar) como punto de partida.
+4.Aplicación de LoRA: Implementa la técnica Low-Rank Adaptation, que permite ajustar el modelo de manera eficiente sin modificar todos sus parámetros,
+ reduciendo drásticamente los requisitos de memoria y tiempo.
+5.Carga y preprocesamiento del dataset: Prepara los datos de conversaciones matemáticas, los tokeniza y los divide en conjuntos de entrenamiento y evaluación.
+6.Configuración del entrenamiento: Establece hiperparámetros como la tasa de aprendizaje, tamaño de batch y número de épocas según la configuración definida en config.py.
+7.Proceso de entrenamiento: Ejecuta el ciclo de entrenamiento donde el modelo aprende de los ejemplos proporcionados, con evaluaciones periódicas.
+8.Guardado del modelo: Al finalizar, guarda los adaptadores LoRA y el tokenizador en la ubicación especificada para uso posterior.

@@ -1,0 +1,240 @@
+Pregunta:
+como esta compuesta tu arquitectura??
+
+RESPUESTA:
+Mi arquitectura se compone de tres componentes clave: la memoria, el marcador y las funciones. 
+La memoria almacena información histórica del contexto, 
+el marcador es responsable de guiar la generación de tokens en función de los datos en la memoria,
+ y las funciones son utilizadas para realizar operaciones matemáticas y de aprendizaje profundo.
+
+ LM Studio - 0.3.15
+
+Chats
+
+
+
+
+
+
+You
+HOLA QUE MODELO ERES?
+
+mathstral-7b-v0.1
+Hello! I am a text-based AI model, designed to assist with a wide range of tasks.
+
+9.17 tok/sec
+
+•
+
+22 tokens
+
+•
+
+0.90s to first token
+
+•
+
+Stop reason: EOS Token Found
+
+You
+PUEEDES RESPONDER ESPANOL??
+
+mathstral-7b-v0.1
+¡Claro que sí, puede hablar español!
+
+9.85 tok/sec
+
+•
+
+13 tokens
+
+•
+
+0.99s to first token
+
+•
+
+Stop reason: EOS Token Found
+
+You
+PUEDES DECIRME QUE MODELO DE llm POSEEES?
+
+mathstral-7b-v0.1
+Estoy diseñado como un modelo de lenguaje basado en IA (Inteligencia Artificial), pero no estoy seguro de cuál es tu modelo exacto. Puedes proporcionar más detalles sobre tu pregunta para ayudarte mejor.
+
+9.59 tok/sec
+
+•
+
+66 tokens
+
+•
+
+0.51s to first token
+
+•
+
+Stop reason: EOS Token Found
+
+You
+QUIERO ENTENDER COMO ESTA COMPUESTA TU ARQUITECTURA
+
+mathstral-7b-v0.1
+Mi arquitectura se compone de tres componentes clave: la memoria, el marcador y las funciones. La memoria almacena información histórica del contexto, el marcador es responsable de guiar la generación de tokens en función de los datos en la memoria, y las funciones son utilizadas para realizar operaciones matemáticas y de aprendizaje profundo.
+
+8.99 tok/sec
+
+•
+
+96 tokens
+
+•
+
+0.68s to first token
+
+•
+
+Stop reason: EOS Token Found
+
+You
+buenos dias podrias decirme cuuales son los numeros naturales?
+
+mathstral-7b-v0.1
+Los números naturales son un conjunto de números que se utilizan para contar o enumerar elementos en una secuencia. Normalmente se incluyen el cero y todos los enteros positivos, es decir, 0, 1, 2, 3, y así sucesivamente.
+
+8.80 tok/sec
+
+•
+
+72 tokens
+
+•
+
+2.11s to first token
+
+•
+
+Stop reason: Stop String Found
+
+You
+¿Es 5/3 un número racional?"
+
+mathstral-7b-v0.1
+Sí, 5/3 se considera un número racional porque puede ser expresado como el cociente de dos números enteros (en este caso, 5 y 3). Un número racional es cualquier número que puede ser escrito en la forma p/q, donde p y q son enteros y q es no cero.
+
+8.58 tok/sec
+
+•
+
+78 tokens
+
+•
+
+1.01s to first token
+
+•
+
+Stop reason: Stop String Found
+
+You
+"Ejemplos de números enteros"
+
+mathstral-7b-v0.1
+Algunos ejemplos de números enteros incluyen 0, 1, -1, 2, -2, 3, -3 y así sucesivamente. Los números enteros son todos los números que no tienen parte decimal y se utilizan para contar o enumerar elementos en una secuencia discreta.
+
+8.62 tok/sec
+
+•
+
+78 tokens
+
+•
+
+1.21s to first token
+
+•
+
+Stop reason: EOS Token Found
+
+You
+"Clasifica π en los conjuntos numéricos"
+
+mathstral-7b-v0.1
+El número pi (π) es un número irracional, lo que significa que no puede ser expresado exactamente como el cociente de dos números enteros. Los números irracionales son aquellos que no se pueden representar mediante una fracción simple y tienen infinitas cifras decimales que no se repiten en un patrón predecible. En este contexto, π no está clasificado como un número entero, natural o racional debido a su naturaleza irracional.
+
+8.31 tok/sec
+
+•
+
+121 tokens
+
+•
+
+1.05s to first token
+
+•
+
+Stop reason: Stop String Found
+
+You
+"Clasifica π en los conjuntos numéricos"
+
+mathstral-7b-v0.1
+El número pi (π) es un número irracional, lo que significa que no puede ser expresado exactamente como el cociente de dos números enteros. Los números irracionales son aquellos que no se pueden representar mediante una fracción simple y tienen infinitas cifras decimales que no se repiten en un patrón predecible. En este contexto, π no está clasificado como un número entero, natural o racional debido a su naturaleza irracional.
+
+8.17 tok/sec
+
+•
+
+123 tokens
+
+•
+
+1.03s to first token
+
+•
+
+Stop reason: Stop String Found
+
+You
+¿Cuántos números primos hay entre 1 y 10?
+
+mathstral-7b-v0.1
+Los únicos números primos entre 1 y 10 son 2, 3, 5 y 7. Un número primo es un número natural mayor que 1 que no tiene divisores positivos otros que 1 y él mismo.
+
+7.63 tok/sec
+
+•
+
+57 tokens
+
+•
+
+0.52s to first token
+
+•
+
+Stop reason: Stop String Found
+
+You
+¿Es -4 un número natural?
+
+mathstral-7b-v0.1
+No, -4 no se considera un número natural. Los números naturales son un conjunto de números utilizados para contar o enumerar elementos en una secuencia y comúnmente se incluyen el cero y todos los enteros positivos (0, 1, 2, 3, etc.). -4 es un número negativo y no está incluso dentro del conjunto de números enteros.
+
+7.80 tok/sec
+
+•
+
+99 tokens
+
+•
+
+1.34s to first token
+
+•
+
+Stop reason: Stop String Found
+
+You
+¿Por qué √9 es racional?

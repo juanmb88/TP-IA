@@ -1,0 +1,33 @@
+Asegurarse tener instalada python v 11. o superior
+a la hora de instalar las dependencias 
+
+pip install transformers
+pip install torch
+pip install accelerate
+
+transformers ( falló por el tema de safetensors que requiere Rust).
+
+¿Qué pasó con transformers?
+Falló porque la librería safetensors, que es opcional pero usada por transformers, necesita compilar algo en Rust. 
+Vas al sitio oficila e instalas Rust
+
+
+RECORDAR ACTIVAR EL ENTORNO VIRTUAL
+
+.\venv\Scripts\activate
+
+
+problemas conm el tokennizer
+
+tokenizers. transformers requiere una versión de tokenizers que sea compatible, pero actualmente tienes la versión 0.21.1, que no es compatible. El paquete transformers requiere una versión >=0.11.1 y <0.14.
+
+
+
+Problemas para instalar librería numpy debes contar con la version mas reciente de pip install , al momento funciono con la version pip-25.0.1
+
+EMPEZAR A VICNULAR EL ARCHIVO TRAIN.PY CON EL MODELO DE MISTRAL
+
+ usar el modelo Mistral 7B descargado en LM Studio sin usar OpenAI, y LM Studio ya tiene activado el API Server local, podés seguir usándolo sin una API key de OpenAI. El truco es que la librería openai se puede usar igual para enviar peticiones al servidor local de LM Studio. Es decir: seguís usando la interfaz de openai.ChatCompletion.create() pero apuntando a localhost.
+
+No estás usando OpenAI realmente, sino solo el formato. Esto lo hace simple.
+

@@ -1,0 +1,2 @@
+ librerías clave como transformers, torch, datasets y peft que son esenciales para trabajar con modelos de Hugging Face y realizar fine-tuning.
+ LA RUTA ABNSOLUTA DEL MODELO : se saca desde la interfaz de LMStudio -> acciones -> los tres puntitos -> copiar ruta absoluta
